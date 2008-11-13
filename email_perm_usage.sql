@@ -20,11 +20,26 @@ group by a."Contact Id"
 select * from sumant_oppts1 a
 where a."Contact or Prospect ID" in ('1000330697','1000397541','1005257847','1004242242')
 
+select * from emea_optins_log
+
 --- REQUIREMENTS:
 /*
+
+create table email_optins_log 
+(id number,
+ proc_name varchar2(4000),
+ execution_date date,
+ execution_comment varchar2(4000)
+);
+create sequence email_optins_log_seq;
+
 1. opportunities pulled from GCM (joined Custom Opportunity Contacts Segmentation and hidden Opportunity Contacts Segmentation (emails) joined by opportunity_rowid)
 2. tars pulled from GCM (prepared by Sree in lm_emea.emea_gcm_tar_summary)
-
+3. emea_optins_flags
+4. function is_table_populated()
+5. proc drop_table2()
+6. tables: gcd_dw.gcd_individuals, gcd_dw.gcd_countries, gcd_dw.gcd_regions, dm_metrics.email_suppression, gcd_dw.gcd_individual_services
+7. gcd_dw.gcd_correspondence_details
 */
 
 drop table oppt3110_distinct;
