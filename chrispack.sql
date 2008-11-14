@@ -5608,13 +5608,16 @@ is
    sqlstmt varchar2(4000) := '';
    view_stmt varchar2(4000) := '';
    
-   all_opportunities = 'KCIERPISZ.SUMANT_OPPTS1';
-   opts_details      = 'KCIERPISZ.OPPTS3';
-   opt_contacts      = 'oppt3110_distinct';
-   opt_emails        = 'oppt3110_email_distinct';
+   all_opportunities varchar2(61) := 'KCIERPISZ.SUMANT_OPPTS1';
+   opts_details      varchar2(61) := 'KCIERPISZ.OPPTS3';
+   opt_contacts      varchar2(61) := 'oppt3110_distinct';
+   opt_emails        varchar2(61) := 'oppt3110_email_distinct';
    
-   tars              = 'lm_emea.emea_gcm_tar_summary';
-   tar1              = 'tar_tmp1'
+   tars              varchar2(61) := 'lm_emea.emea_gcm_tar_summary';
+   tar1              varchar2(61) := 'tar_tmp1';
+   activities        varchar2(61) := 'activities18'; -- 18months activities
+   email_sent_hist1  varchar2(61) := 'email_sent_h1'; -- based on individual_id
+   email_sent_hist2  varchar2(61) := 'email_sent_h2'; -- based on email_address
 
 begin
     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'PROC_' || table_name, sysdate,'START');
@@ -6072,7 +6075,7 @@ begin
                         then
 
                             drop_table2(table_name || '_FLAGS2', email_optins_log);
-
+                          begin
                             sqlstmt := 'create table ' || table_name || '_FLAGS2 nologging as
                                         select a.*, b.op_date op_date1, c.op_date op_date2,
                                         replace(greatest(nvl(b.op_date,to_date(''01011900'',''DDMMYYYY'')),
@@ -6086,31 +6089,293 @@ begin
                             execute immediate sqlstmt;
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 created from ' || table_name || '_FLAGS', sysdate,'CREATED');
                             commit;
-
-
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 created from ' || table_name || '_FLAGS', sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
                        else
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS', sysdate,'NOT POPULATED');
 
                        end if;
 
 
-                       if chrispack.is_table_populated(table_name || '_FLAGS2') then
-
-                        drop table emea_optins_flags3;
-create table emea_optins_flags3 as
-select a.*, b.org_id, b.org_party_id, b.last_email_contacted_date from emea_optins_flags2 a, gcd_dw.gcd_individuals b
-where a.individual_id = b.individual_id;
+                       if chrispack.is_table_populated(table_name || '_FLAGS2')
+                            and CHRISPACK.is_table_populated('gcd_dw.gcd_individuals')
+                        then
 
                         drop_table2(table_name || '_FLAGS3', email_optins_log);
+                        begin
+                            sqlstmt := 'create table ' || table_name || '_FLAGS3 as
+                                        select a.*, b.org_id, b.org_party_id, b.last_email_contacted_date
+                                        from ' || table_name || '_FLAGS2 a, gcd_dw.gcd_individuals b
+                                        where a.individual_id = b.individual_id
+                                        ';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3', sysdate,'CREATED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3',sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
 
+                        begin
+                            sqlstmt := 'create index bt_opt_fl3_org on ' || table_name || '_FLAGS3' || ' (org_id)';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3 INDEX org_id', sysdate,'CREATED');
+                            commit;
+                        exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3 INDEX org_id', sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                        end;
 
                        else
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2', sysdate,'NOT POPULATED');
                        end if;
-            
+                       
+
+                       if chrispack.is_table_populated(table_name || '_FLAGS3') then
+
+
+                        drop_table2(table_name || '_FLAGS4', email_optins_log);
+                        begin
+                            sqlstmt := 'create table ' || table_name || '_FLAGS4 as
+                            select a.*, b.gsi_party_id, b.duns_number
+                            from ' || table_name || '_flags3 a, gcd_dw.lb_organizations_eu_vw b
+                            where a.org_id = b.org_id (+)
+                            ';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS4', sysdate,'CREATED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS4',sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
+
+                        begin
+                            sqlstmt := 'create index bt_opt_fl4_part on ' || table_name || '_FLAGS4' || ' (gsi_party_id)';
+                            execute immediate sqlstmt;
+                            sqlstmt := 'create index bt_opt_fl4_duns on ' || table_name || '_FLAGS4' || ' (duns_number)';
+                            execute immediate sqlstmt;
+                            sqlstms := 'create unique index bt_emea_opt_fl4_ind on ' || table_name || '_FLAGS4' || ' (individual_id)';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS4 INDEXes on gsi_party_id and org_id and ind_id', sysdate,'CREATED');
+                            commit;
+                        exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS4 INDEXes on gsi_party_id and org_id and ind_id', sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                        end;
+
+                       else
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3', sysdate,'NOT POPULATED');
+                       end if;
+
+
+                       if chrispack.is_table_populated(table_name || '_FLAGS4')
+                            and CHRISPACK.is_table_populated(tar1) then
+                        drop_table2(tar1 || '_part', email_optins_log);
+                        drop_table2(tar1 || '_duns', email_optins_log);
+
+
+
+                        begin
+                            sqlstmt := 'create table ' || tar1 || '_part nologgin as
+                            select a.individual_id, max(b.tar_date) tar_date_party_id
+                            from ' || table_name || '_FLAGS4 a, ' || tar1 || ' b
+                            where a.gsi_party_id = b.gsi_party_id
+                            group by a.individual_id, a.email_address
+                            ';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || '_part', sysdate,'CREATED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || '_part',sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
+
+                        begin
+                            sqlstmt := 'create table ' || tar1 || '_duns nologgin as
+                            select a.individual_id, max(b.tar_date) tar_date_duns
+                            from ' || table_name || '_flags4 a, ' || tar1 || ' b
+                            where a.duns_number = b.duns_number
+                            group by a.individual_id, a.email_address
+                            ';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || '_duns', sysdate,'CREATED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || '_duns',sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
+
+                         begin
+                            sqlstmt := 'create index bt_tar1_part_ind on ' || tar1 || '_part' || ' (individual_id)';
+                            execute immediate sqlstmt;
+                            sqlstmt := 'create index bt_tar1_duns_ind on ' || tar1 || '_duns' || ' (individual_id)';
+                            execute immediate sqlstmt;
+
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || '_part and _duns INDEXes on individual_id', sysdate,'CREATED');
+                            commit;
+                        exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || '_part and _duns INDEXes on individual_id', sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                        end;
+
+
+                       else
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS4', sysdate,'NOT POPULATED');
+                       end if;
+
             ---------------------------------------------
 
+                ---- prepare activities
 
+                        if chrispack.is_table_populated('gcd_dw.gcd_gcm_activities') then
+
+                        drop_table2(activities, email_optins_log);
+
+                        begin
+                            sqlstmt := 'create table ' || activities || 'nologging as
+                            select a.individual_id, max(a.activity_date) act_date from gcd_dw.gcd_gcm_activities a
+                            where a.activity_date >= add_months(sysdate,-18)
+                            and (a.classification in (''SDS'',''Software Downloaded'',''OTN SOFTWARE DOWNLOAD'',
+                            						  ''Event - Walk-in'',''Event - Pre-Reg Attendee'')
+                            	 or a.classification = ''EVENT'' and a.status in (''Attended'',''ATTENDED'',''Walkin'')
+                            	 or a.classification = ''ERS'' and a.response_type in (''Event - Pre-Reg Attendee'',''Event - Walk-in''))
+                            group by a.individual_id
+                            ';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,activities, sysdate,'CREATED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,activities,sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
+
+                        begin
+                            sqlstmt := 'create unique index bt_acts_ind on ' || activities || ' (individual_id)';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,activities || ' INDEX on individual_id', sysdate,'CREATED');
+                            commit;
+                        exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,activities || ' INDEX on individual_id', sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                        end;
+
+
+                       else
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'gcd_dw.gcd_gcm_activities', sysdate,'NOT POPULATED');
+                       end if;
+
+
+                    --------- prepare email sent history ---------------
+
+                        if chrispack.is_table_populated('dm_metrics.LIST_MGMT_CONTACT_HISTORY') then
+
+                        drop_table2(email_sent_hist1, email_optins_log);
+                        drop_table2(email_sent_hist2, email_optins_log);
+
+                        begin
+                            sqlstmt := 'create table ' || email_sent_hist1 || 'nologging as
+                                    select a.individual_id, max(a.list_sent_date) last_email_date
+                                    from dm_metrics.LIST_MGMT_CONTACT_HISTORY a
+                                    where upper(a.contact_channel) = ''EMAIL''
+                                    and a.individual_id is not null
+                                    and a.list_sent_date is not null
+                                    group by a.individual_id
+                                    ';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist1, sysdate,'CREATED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist1,sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
+
+                        begin
+                            sqlstmt := 'create table ' || email_sent_hist2 || 'nologging as
+                                    select upper(a.email_address) email_address, max(a.list_sent_date) last_email_date
+                                    from dm_metrics.LIST_MGMT_CONTACT_HISTORY a
+                                    where upper(a.contact_channel) = ''EMAIL''
+                                    and a.email_address is not null
+                                    and a.list_sent_date is not null
+                                    group by upper(a.email_address)
+                                    ';
+                            execute immediate sqlstmt;
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist2, sysdate,'CREATED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist2,sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                         end;
+
+                         begin
+                            sqlstmt := 'create index bt_email_hist1_ind on ' || email_sent_hist1 || ' (individual_id)';
+                            execute immediate sqlstmt;
+                            sqlstmt := 'create index bt_email_hist2_email on ' || email_sent_hist2 || ' (email_address)';
+                            execute immediate sqlstmt;
+
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist1 || ' and ' || email_sent_hist2 || ' indexes', sysdate,'CREATED');
+                            commit;
+                        exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist1 || ' and ' || email_sent_hist2 || ' indexes', sysdate,'NOT CREATED - ' || err_msg);
+                            commit;
+                        end;
+
+
+                       else
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'dm_metrics.LIST_MGMT_CONTACT_HISTORY', sysdate,'NOT POPULATED');
+                       end if;
+
+                    
+                -----------------------------------------------------
+/*
+create table emea_optins_flags5 nologging as
+select /*+ index(b bt_tar1_part_ind)
+		   index(c bt_tar1_duns_ind) index(d BT_PRODS_EMEA_FLAGS_ORG_ID)
+		   index(e BT_ACTS6_IND) index(f BT_ACTS18_IND) */
+
+/*
+a.*, b.tar_date_party_id tar_date_partyid, c.tar_date_duns tar_date_duns,
+(case when d.org_id is not null then greatest(nvl(d.db_inst,add_months(sysdate,-70)),
+											  nvl(d.applications,add_months(sysdate,-70))
+											 ) end) customer,
+e.act_date activity_date, f.act_date activity_date18
+/*
+(case when e1.last_email_date >= nvl(e2.last_email_date,add_months(sysdate,-50)) then e1.last_email_date
+		else e2.last_email_date end) email_hist_sent_date
+*/
+/*
+from emea_optins_flags4 a, tar1_part b, tar1_duns c, prods_emea_flags d,
+
+activities6 e, activities18 f
+--email_sent_hist1 e1, email_sent_hist2 e2
+where  a.individual_id = b.individual_id (+)
+and a.individual_id = c.individual_id (+)
+and a.org_id = d.org_id (+)
+and coalesce(d.db_inst(+),d.applications(+) ) is not null
+and a.individual_id = e.individual_id (+)
+and a.individual_id = f.individual_id (+);
+
+create unique index bt_emea_optins_fl5_ind on emea_optins_flags5 (individual_id);
+create index bt_emea_optins_fl5_em on emea_optins_flags5 (email_address);
+
+*/
+                -----------------------
+
+/*
                 view_stmt := 'create or replace view emea_optins_vw as
                     select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
                     a.optin
@@ -6126,11 +6391,13 @@ where a.individual_id = b.individual_id;
                     commit;
                 end;
 
+*/
+/*
         else
                 insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp6', sysdate,'NOT POPULATED');
 
         end if;
-
+*/
     else
 
         --insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'gcd_dw.lb_individuals_eu_vw', sysdate,'NOT POPULATED ending');
@@ -6138,10 +6405,11 @@ where a.individual_id = b.individual_id;
         commit;
     end if;
 
+/*
     begin
       execute immediate 'GRANT SELECT ON emea_optins_vw TO public';
     end;
-
+*/
     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'PROC_' || table_name, sysdate,'END');
     commit;
 

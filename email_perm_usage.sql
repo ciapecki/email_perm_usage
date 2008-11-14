@@ -39,8 +39,11 @@ create sequence email_optins_log_seq;
 4. function is_table_populated()
 5. proc drop_table2()
 6. tables: gcd_dw.gcd_individuals, gcd_dw.gcd_countries, gcd_dw.gcd_regions, dm_metrics.email_suppression, gcd_dw.gcd_individual_services
-7. gcd_dw.gcd_correspondence_details
+7. gcd_dw.gcd_correspondence_details, gcd_dw.lb_organizations_eu_vw, gcd_dw.gcd_gcm_activities, dm_metrics.LIST_MGMT_CONTACT_HISTORY
 */
+
+grant select on sumant_oppts1 to public;
+grant select on oppts3 to public;
 
 drop table oppt3110_distinct;
 create table oppt3110_distinct as
