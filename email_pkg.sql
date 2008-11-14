@@ -366,11 +366,11 @@ begin
                 	  end) optin
                     from ' || table_name || '_tmp5 a
                     where email_address like ''_%@_%.__%''';
-                insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS created from ' || table_name || '_tmp5', sysdate,'RENAMED');
+                insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS created from ' || table_name || '_tmp5', sysdate,'CREATED');
                 commit;
             EXCEPTION WHEN OTHERS THEN
                 err_msg := SUBSTR(SQLERRM, 1, 100);
-                insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS not created from ' || table_name || '_tmp5', sysdate,'NOT RENAMED - ' || err_msg);
+                insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS not created from ' || table_name || '_tmp5', sysdate,'NOT CREATED - ' || err_msg);
                 commit;
             end;
 
@@ -558,10 +558,15 @@ begin
                           begin
                             sqlstmt := 'create table ' || table_name || '_FLAGS2 nologging as
                                         select a.*, b.op_date op_date1, c.op_date op_date2,
-                                        replace(greatest(nvl(b.op_date,to_date(''01011900'',''DDMMYYYY'')),
+/*                                        replace(greatest(nvl(b.op_date,to_date(''01011900'',''DDMMYYYY'')),
                                                          nvl(c.op_date,to_date(''01011900'',''DDMMYYYY''))),
                                                          to_date(''01011900'',''DDMMYYYY''),null
                                                 ) op_date
+*/
+                                            (case when nvl(c.op_date,to_date(''01011900'',''DDMMYYYY'')) >
+                                                            nvl(b.op_date,to_date(''01011900'',''DDMMYYYY''))
+                                                    then c.op_date
+                                                    else b.op_date end) op_date
                                         from ' || table_name || '_FLAGS a, ' || opt_contacts || ' b, ' || opt_emails || ' c
                                         where b.contact_prospect_rowid (+) = coalesce(a.contact_rowid, a.prospect_rowid)
                                         and a.email_address = c.email_address (+)
@@ -803,6 +808,17 @@ begin
                          end;
 
                          begin
+                            execute immediate 'drop index bt_email_hist1_ind';
+                            execute immediate 'drop index bt_email_hist2_email';
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist1 || ' and ' || email_sent_hist2 || ' indexes', sysdate,'DROPPED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,email_sent_hist1 || ' and ' || email_sent_hist2 || ' indexes', sysdate,'NOT DROPPED - ' || err_msg);
+                            commit;
+                         end;
+
+                         begin
                             sqlstmt := 'create index bt_email_hist1_ind on ' || email_sent_hist1 || ' (individual_id)';
                             execute immediate sqlstmt;
                             sqlstmt := 'create index bt_email_hist2_email on ' || email_sent_hist2 || ' (email_address)';
@@ -916,17 +932,20 @@ begin
 ---------- FINAL
 
                if is_table_populated(table_name || '_FLAGS6') then
+    -- enter confirmation FLAGS6 populated
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS6', sysdate,'POPULATED');
+                            commit;
 
                         drop_table2(table_name || '_BAK', email_optins_log);
 
 --                        email_optins -> email_optins_bak
                         begin
                             execute immediate 'alter table ' || table_name || ' rename to ' || table_name || '_bak';
-                            insert into emea_optins_log values (emea_optins_seq.NEXTVAL,table_name || ' rename -> ' || table_name || '_bak', sysdate,'RENAMED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' rename -> ' || table_name || '_bak', sysdate,'RENAMED');
                             commit;
                         EXCEPTION WHEN OTHERS THEN
                             err_msg := SUBSTR(SQLERRM, 1, 100);
-                            insert into emea_optins_log values (emea_optins_seq.NEXTVAL,table_name || ' rename', sysdate,'NOT RENAMED - ' || err_msg);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' rename', sysdate,'NOT RENAMED - ' || err_msg);
                             commit;
                         end;
 
@@ -955,14 +974,15 @@ begin
                                            end) email_permission
                                         from ' || table_name || '_FLAGS6 a';
                             execute immediate sqlstmt;
-                            insert into emea_optins_log values (emea_optins_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS6', sysdate,'CREATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS6', sysdate,'CREATED');
                             commit;
                         EXCEPTION WHEN OTHERS THEN
                             err_msg := SUBSTR(SQLERRM, 1, 100);
-                            insert into emea_optins_log values (emea_optins_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS6', sysdate,'NOT CREATED - ' || err_msg);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS6', sysdate,'NOT CREATED - ' || err_msg);
                             commit;
                         end;
 
+/*
                         begin
                             execute immediate 'DROP INDEX BT_em_op_ind';
                             execute immediate 'DROP INDEX BM_em_op_country';
@@ -975,19 +995,29 @@ begin
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' indexes DROP',sysdate,'NOT DROPPED - ' || err_msg);
                             commit;
                          end;
-
-                            
+*/
                         begin
-                            
-                            sqlstmt := 'create unique index bt_em_op_ind on ' || table_name || ' (individual_id)';
+                            execute immediate 'drop index bt_em_op_ind1';
+                            execute immediate 'drop index bm_em_op_country1';
+                            execute immediate 'drop index bt_em_op_email1';
+                            execute immediate 'drop index bm_em_op_country1';
+                            execute immediate 'drop index FB_em_op_rowid1';
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' indexes', sysdate,'DROPED');
+                            commit;
+                         exception when others then
+                            err_msg := SUBSTR(SQLERRM, 1, 100);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' indexes',sysdate,'NOT DROPPED - ' || err_msg);
+                            commit;
+                         end;
+
+                        begin
+                            sqlstmt := 'create unique index bt_em_op_ind1 on ' || table_name || ' (individual_id)';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create bitmap index bm_em_op_country on ' || table_name || ' (country_id)';
+                            sqlstmt := 'create bitmap index bm_em_op_country1 on ' || table_name || ' (country_id)';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create index bt_em_op_email on ' || table_name || ' (email_address)';
+                            sqlstmt := 'create index bt_em_op_email1 on ' || table_name || ' (email_address)';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create index bm_em_op_country on ' || table_name || ' (country_id)';
-                            execute immediate sqlstmt;
-                            sqlstmt := 'CREATE INDEX FB_em_op_rowid ON ' || table_name || ' (  nvl(contact_rowid,prospect_rowid)  )';
+                            sqlstmt := 'CREATE INDEX FB_em_op_rowid1 ON ' || table_name || ' (  nvl(contact_rowid,prospect_rowid)  )';
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' indexes', sysdate,'CREATED');
                             commit;
                          exception when others then
@@ -1040,11 +1070,14 @@ begin
         commit;
     end if;
 
-/*
+
     begin
-      execute immediate 'GRANT SELECT ON emea_optins_vw TO public';
+      execute immediate 'GRANT SELECT ON ' ||  table_name || ' TO public';
+      insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'GRANT SELECT ON ' || table_name || ' TO public', sysdate,'GRANTED');
+      commit;
+
     end;
-*/
+
     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'PROC_' || table_name, sysdate,'END');
     commit;
 
