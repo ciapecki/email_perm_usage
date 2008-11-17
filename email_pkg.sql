@@ -77,9 +77,27 @@ create sequence email_optins_log_seq;
 */
 
 procedure PROC_EMAIL_OPTINS
+
+/*
+creates a table email_optins and a simplified view email_optins_vw
+view fields:
+SUB_REGION_NAME,COUNTRY_ID,INDIVIDUAL_ID,EMAIL_ADDRESS,
+CONTACT_ROWID,PROSPECT_ROWID,EMAIL_PERMISSION
+
+table fields:
+SUB_REGION_NAME,COUNTRY_ID,INDIVIDUAL_ID,EMAIL_ADDRESS,
+CONTACT_ROWID,PROSPECT_ROWID,CONTACT_EMAIL_PRFL,
+CONTACT_EMAIL_PRFL2,GCD_SERVICES,SUPPRESSION,CORRESPONDENCE1,
+OPTIN,OP_DATE1,OP_DATE2,OP_DATE,ORG_ID,ORG_PARTY_ID,
+LAST_EMAIL_CONTACTED_DATE,GSI_PARTY_ID,DUNS_NUMBER,
+TAR_DATE_PARTYID,TAR_DATE_DUNS,CUSTOMER,ACTIVITY_DATE18,
+EMAIL_HIST_SENT_DATE,EMAIL_PERMISSION
+
+*/
+
 is
 
-    omit boolean := true;
+    omit boolean := false; --- just for testing to omit long running table creations
     
    err_num NUMBER;
    err_msg VARCHAR2(100);
@@ -809,6 +827,7 @@ begin
 
                     --------- prepare email sent history ---------------
 
+/* we don't need it, I guess :)
                         if is_table_populated('dm_metrics.LIST_MGMT_CONTACT_HISTORY')
                             and omit <> true
                         then
@@ -884,7 +903,7 @@ begin
 
 
                 -----------------------------------------------------
-
+*/
                         if is_table_populated(table_name || '_FLAGS4') then
 
                         drop_table2(table_name || '_FLAGS5', email_optins_log);
@@ -941,6 +960,7 @@ begin
                        end if;
 
 
+/*
                         if is_table_populated(table_name || '_FLAGS5') then
 
                         drop_table2(table_name || '_FLAGS6', email_optins_log);
@@ -950,7 +970,10 @@ begin
                             commit;
 
                             sqlstmt := 'create table ' || table_name || '_flags6 nologging as
-                                select /*+ index(e1 bt_email_hist1_ind) index(e2 BT_EMAIL_HIST2_EMAIL) */ a.*,
+                                select
+*/
+                                /*+ index(e1 bt_email_hist1_ind) index(e2 BT_EMAIL_HIST2_EMAIL) */
+/*                                a.*,
                                 (case when e1.last_email_date >= nvl(e2.last_email_date,add_months(sysdate,-50)) then e1.last_email_date
 		                          else e2.last_email_date end) email_hist_sent_date
                                 from ' || table_name || '_flags5 a, ' ||
@@ -973,12 +996,13 @@ begin
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS5', sysdate,'NOT POPULATED');
                        end if;
 
-
+*/ -- since we don't need email_sent_history
 ---------- FINAL
 
-               if is_table_populated(table_name || '_FLAGS6') then
+--               if is_table_populated(table_name || '_FLAGS6') then
+               if is_table_populated(table_name || '_FLAGS5') then
 
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS6', sysdate,'POPULATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS5', sysdate,'POPULATED');
                             commit;
 
                         drop_table2(table_name || '_BAK', email_optins_log);
@@ -997,7 +1021,13 @@ begin
                         begin
                             sqlstmt := 'create table ' || table_name || ' nologging as
                                         select a.*,
-                                        (case when
+                                        (case
+                                         when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
+                                                    or a.suppression is not null
+                                                    or coalesce(a.contact_email_prfl,a.contact_email_prfl2,suppression) is null
+                                                        and a.gcd_services = ''N''
+                                          then ''N''
+                                        when
                                             (a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y''
 		                                      or nvl(a.op_date,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 		                                      or nvl(a.tar_date_partyid,add_months(sysdate,-60)) >= add_months(sysdate,-18) or
@@ -1009,15 +1039,11 @@ begin
                                                 and a.suppression is null
                                            or
                                                 (a.gcd_services = ''Y'' or a.correspondence1 = ''Y'')
-                                                and (nvl(a.contact_email_prfl,''Y'') = ''Y'' or nvl(a.contact_email_prfl2,''Y'') = ''Y'')
+                                                and (a.contact_email_prfl is null and a.contact_email_prfl2 is null)
                                                 and a.suppression is null
 		                                  then ''Y''
 
-                                          when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
-                                                    or a.suppression is not null 
-                                                    or coalesce(a.contact_email_prfl,a.contact_email_prfl2,suppression) is null
-                                                        and a.gcd_services = ''N''
-                                          then ''N''
+                                         
 
                                           when
                                                 a.contact_email_prfl is null and a.contact_email_prfl2 is null
@@ -1040,13 +1066,13 @@ begin
                                                 and nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
                                                 then ''Y''
                                           end) email_permission
-                                        from ' || table_name || '_FLAGS6 a';
+                                        from ' || table_name || '_FLAGS5 a';
                             execute immediate sqlstmt;
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS6', sysdate,'CREATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS5', sysdate,'CREATED');
                             commit;
                         EXCEPTION WHEN OTHERS THEN
                             err_msg := SUBSTR(SQLERRM, 1, 100);
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS6', sysdate,'NOT CREATED - ' || err_msg);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS5', sysdate,'NOT CREATED - ' || err_msg);
                             commit;
                         end;
 
@@ -1084,7 +1110,7 @@ begin
 
 
                        else
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS6', sysdate,'NOT POPULATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS5', sysdate,'NOT POPULATED');
                        end if;
 
                 -----------------------
