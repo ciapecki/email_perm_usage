@@ -1,6 +1,10 @@
 PACKAGE BODY EMAIL_PKG
 IS
 
+/*
+    git revision: 4dc55942c235798601107d2b742bd3159ed96185
+*/
+
 function is_table_populated
     (tableName in varchar2)
     return boolean is
@@ -47,6 +51,31 @@ exception when others then
     commit;
 end;
 
+--- REQUIREMENTS:
+/*
+
+create table email_optins_log
+(id number,
+ proc_name varchar2(4000),
+ execution_date date,
+ execution_comment varchar2(4000)
+);
+create sequence email_optins_log_seq;
+
+1. opportunities pulled from GCM (joined Custom Opportunity Contacts Segmentation and hidden Opportunity Contacts Segmentation (emails) joined by opportunity_rowid)
+   currently tables: KCIERPISZ.SUMANT_OPPTS1, KCIERPISZ.OPPTS3
+2. tars pulled from GCM (prepared by Sree in lm_emea.emea_gcm_tar_summary)
+    table: lm_emea.emea_gcm_tar_summary
+3. table containing customer information: kcierpisz.prods_emea_flags
+4. function is_table_populated() -> for checking if base table exists and if it contains data in it
+5. proc drop_table2()
+6. tables: gcd_dw.gcd_individuals, gcd_dw.gcd_countries, gcd_dw.gcd_regions,
+    dm_metrics.email_suppression, gcd_dw.gcd_individual_services
+    gcd_dw.gcd_correspondence_details, gcd_dw.lb_organizations_eu_vw, gcd_dw.gcd_gcm_activities,
+    dm_metrics.LIST_MGMT_CONTACT_HISTORY,
+    dm_metrics.vg_prfl_email_subscriptions
+*/
+
 procedure PROC_EMAIL_OPTINS
 is
 
@@ -60,17 +89,69 @@ is
    view_stmt varchar2(4000) := '';
 
    all_opportunities varchar2(61) := 'KCIERPISZ.SUMANT_OPPTS1';
+/*
+    table containing all_opportunities -> prepared in GCM "Custom Opportunity Segmentation" SA:
+NAME                            Null?     Type
+------------------------------- --------- -----
+Contact or Prospect ID                    VARCHAR2(4000)
+Email Address                             VARCHAR2(4000)
+ROW_ID                                    VARCHAR2(4000)
+Opportunity Name                          VARCHAR2(4000)
+
+*/
    opts_details      varchar2(61) := 'KCIERPISZ.OPPTS3';
+/*
+    table containing all_opportunities -> prepared in GCM "Custom Contacts Opportunity Segmentation" SA:
+NAME                            Null?     Type
+------------------------------- --------- -----
+Opty Status                               VARCHAR2(4000)
+Opened Date                               VARCHAR2(4000)
+ROW_ID                                    VARCHAR2(4000)
+*/
    opt_contacts      varchar2(61) := 'oppt3110_distinct';
+/* table that will contain grouped by contact_prospect_rowid, email_address, op_date */
+
    opt_emails        varchar2(61) := 'oppt3110_email_distinct';
+/* table that will contain grouped by email_address, op_date */
 
    tars              varchar2(61) := 'lm_emea.emea_gcm_tar_summary';
+/* table prepared by Sree that contains 2yrs TAR information from GCM "Custom Service Request Segmantation" SA */
+
    tar1              varchar2(61) := 'tar_tmp1';
+/* table that will contain grouped by (gsi_party_id, duns_number) max(tar_date) */
+
    activities        varchar2(61) := 'activities18'; -- 18months activities
+/* table that will contain grouped by individual_id act_date based on information coming from
+        gcd_dw.gcd_gcm_activities
+        act_date is the max date for the following condition:
+        
+        activity_date >= add_months(sysdate,-18)
+        and (a.classification in (''SDS'',''Software Downloaded'',''OTN SOFTWARE DOWNLOAD'',
+                            	  ''Event - Walk-in'',''Event - Pre-Reg Attendee'')
+      	     or a.classification = ''EVENT'' and a.status in (''Attended'',''ATTENDED'',''Walkin'')
+          	 or a.classification = ''ERS'' and a.response_type in (''Event - Pre-Reg Attendee'',''Event - Walk-in'')
+            )               	
+*/
+
    email_sent_hist1  varchar2(61) := 'email_sent_h1'; -- based on individual_id
+/* table that will contain grouped by individual_id last_email_date
+    based on information coming from dm_metrics.LIST_MGMT_CONTACT_HISTORY
+    with condition:
+          where upper(a.contact_channel) = ''EMAIL''
+                and a.individual_id is not null
+                and a.list_sent_date is not null
+*/
+
    email_sent_hist2  varchar2(61) := 'email_sent_h2'; -- based on email_address
-   
+/* table that will contain grouped by email_address last_email_date
+    based on information coming from dm_metrics.LIST_MGMT_CONTACT_HISTORY
+          where upper(a.contact_channel) = ''EMAIL''
+                and a.email_address is not null
+                and a.list_sent_date is not null
+*/
+
    prods_emea_flags  varchar2(61) := 'kcierpisz.prods_emea_flags';
+/* table that contains customers -> EMEA only */
 
 begin
     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'PROC_' || table_name, sysdate,'START');
@@ -87,7 +168,8 @@ begin
 
             begin
             sqlstmt := 'create table ' || table_name || '_tmp1 nologging as
-                        select c.name as sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid
+                        select c.name as sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
+                        a.org_id, a.org_party_id, a.last_email_contacted_date
                         from gcd_dw.gcd_individuals a, gcd_dw.gcd_countries b, gcd_dw.gcd_regions c
                         where
                         a.country_id in (2,3,5,6,11,14,15,17,20,21,23,27,28,33,34,35,37,39,41,42,48,49,50,53,54,56,57,58,59,64,66,67,68,69,70,71,73,74,75,76,79,80,81,82,83,84,85,86,88,91,92,96,99,100,103,104,105,106,107,110,111,112,116,117,119,120,121,122,123,124,125,126,128,129,130,133,134,136,137,138,139,142,143,146,147,149,152,153,154,157,158,162,163,172,173,175,176,177,178,179,184,185,186,187,188,189,191,192,194,195,196,197,199,200,201,203,204,205,206,207,209,210,212,216,217,218,221,222,223,224,228,235,236,238,239,242,243,244,246,247)
@@ -171,6 +253,7 @@ begin
             commit;
             sqlstmt := 'create table ' || table_name || '_tmp2 nologging as
                 select a.sub_region_name, a.country_id, a.individual_id, a.contact_rowid, a.prospect_rowid,
+                a.org_id, a.org_party_id, a.last_email_contacted_date,
                 (case when b.email_address is not null then b.email_address else a.email_address end) email_address,
                 b.contact_email contact_email_prfl
                 from ' || table_name || '_tmp1 a, vg_prfl b
@@ -234,10 +317,12 @@ begin
             begin
             sqlstmt := 'create table ' || table_name || '_tmp3 nologging as
                 select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
+                a.org_id, a.org_party_id, a.last_email_contacted_date,
                 a.contact_email_prfl,a.contact_email_prfl2, max(case when b.email_address is not null then 1 end) suppression
                 from ' || table_name || '_tmp2 a, dm_metrics.email_suppression b
                 where a.email_address = b.email_address (+)
                 group by a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid,
+                a.org_id, a.org_party_id, a.last_email_contacted_date,
                 a.prospect_rowid, a.contact_email_prfl, a.contact_email_prfl2';
 
             dbms_output.put_line(sqlstmt);
@@ -312,11 +397,10 @@ begin
                 commit;
             end;
 
-
-            --- emea_inds2 -> emea_inds
             begin
                 execute immediate 'create table ' || table_name || '_FLAGS nologging as
                 select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
+                a.org_id, a.org_party_id, a.last_email_contacted_date,
                 a.contact_email_prfl, a.contact_email_prfl2, a.gcd_services, a.suppression,
                 a.correspondence1,
                 (case when a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y'' then ''Y''
@@ -509,7 +593,7 @@ begin
 
            ----------------------------
 
-            ----------------- LORI rules ----------------
+            ----------------- based on LORI's chart rules ----------------
                        if is_table_populated(table_name || '_FLAGS')
                           and is_table_populated(opt_contacts)
                           and is_table_populated(opt_emails)
@@ -545,6 +629,7 @@ begin
                             and is_table_populated('gcd_dw.gcd_individuals')
                         then
 
+                        /*
                         drop_table2(table_name || '_FLAGS3', email_optins_log);
                         begin
                             sqlstmt := 'create table ' || table_name || '_FLAGS3 as
@@ -560,15 +645,17 @@ begin
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3',sysdate,'NOT CREATED - ' || err_msg);
                             commit;
                          end;
-
+                        */
+                        
                         begin
-                            sqlstmt := 'create index bt_opt_fl3_org on ' || table_name || '_FLAGS3' || ' (org_id)';
+                            --sqlstmt := 'create index bt_opt_fl3_org on ' || table_name || '_FLAGS3' || ' (org_id)';
+                            sqlstmt := 'create index bt_opt_fl2_org on ' || table_name || '_FLAGS2' || ' (org_id)';
                             execute immediate sqlstmt;
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3 INDEX org_id', sysdate,'CREATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 INDEX org_id', sysdate,'CREATED');
                             commit;
                         exception when others then
                             err_msg := SUBSTR(SQLERRM, 1, 100);
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3 INDEX org_id', sysdate,'NOT CREATED - ' || err_msg);
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 INDEX org_id', sysdate,'NOT CREATED - ' || err_msg);
                             commit;
                         end;
 
@@ -577,14 +664,14 @@ begin
                        end if;
 
 
-                       if is_table_populated(table_name || '_FLAGS3') then
+                       if is_table_populated(table_name || '_FLAGS2') then
 
 
                         drop_table2(table_name || '_FLAGS4', email_optins_log);
                         begin
                             sqlstmt := 'create table ' || table_name || '_FLAGS4 as
                             select a.*, b.gsi_party_id, b.duns_number
-                            from ' || table_name || '_flags3 a, gcd_dw.lb_organizations_eu_vw b
+                            from ' || table_name || '_flags2 a, gcd_dw.lb_organizations_eu_vw b
                             where a.org_id = b.org_id (+)
                             ';
                             execute immediate sqlstmt;
@@ -918,16 +1005,20 @@ begin
 		                                      or a.customer is not null
 		                                      or nvl(a.activity_date18,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 			                                )
-                                            and nvl(a.contact_email_prfl,''A'') <> ''N'' and nvl(a.contact_email_prfl2,''A'') <> ''N''
-                                            and a.suppression is null
-                                                or
-                                            (a.gcd_services = ''Y'' or a.correspondence1 = ''Y'')
-                                            and (nvl(a.contact_email_prfl,''Y'') = ''Y'' or nvl(a.contact_email_prfl2,''Y'') = ''Y'')
-                                            and a.suppression is null
+                                                and nvl(a.contact_email_prfl,''A'') <> ''N'' and nvl(a.contact_email_prfl2,''A'') <> ''N''
+                                                and a.suppression is null
+                                           or
+                                                (a.gcd_services = ''Y'' or a.correspondence1 = ''Y'')
+                                                and (nvl(a.contact_email_prfl,''Y'') = ''Y'' or nvl(a.contact_email_prfl2,''Y'') = ''Y'')
+                                                and a.suppression is null
 		                                  then ''Y''
 
-                                          when a.contact_email_prfl = ''N'' or a.contact_email_prfl = ''N''
-                                                    or a.suppression is not null then ''N''
+                                          when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
+                                                    or a.suppression is not null 
+                                                    or coalesce(a.contact_email_prfl,a.contact_email_prfl2,suppression) is null
+                                                        and a.gcd_services = ''N''
+                                          then ''N''
+
                                           when
                                                 a.contact_email_prfl is null and a.contact_email_prfl2 is null
                                                 and nvl(a.op_date,add_months(sysdate,-60)) < add_months(sysdate,-18)
@@ -935,6 +1026,7 @@ begin
                                                 and nvl(a.tar_date_duns,add_months(sysdate,-60)) < add_months(sysdate,-18)
                                                 and a.customer is null
                                                 and nvl(a.activity_date18,add_months(sysdate,-60)) < add_months(sysdate,-18)
+                                                and a.gcd_services is null
                                                 and nvl(a.sub_region_name,''A'') not in (''MIDDLE EAST'',''AFRICA'')
                                                 then null
                                           when
@@ -944,6 +1036,7 @@ begin
                                                 and nvl(a.tar_date_duns,add_months(sysdate,-60)) < add_months(sysdate,-18)
                                                 and a.customer is null
                                                 and nvl(a.activity_date18,add_months(sysdate,-60)) < add_months(sysdate,-18)
+                                                and nvl(a.gcd_services,''Y'') = ''Y''
                                                 and nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
                                                 then ''Y''
                                           end) email_permission
