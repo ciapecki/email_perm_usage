@@ -504,6 +504,7 @@ begin
             -- tars = 'lm_emea.emea_gcm_tar_summary'
 
          if is_table_populated(tars)
+            and omit <> true
          then
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tars || ' POPULATED', sysdate,'POPULATED');
             commit;
@@ -723,7 +724,7 @@ begin
                 ---- prepare activities
 
                         if is_table_populated('gcd_dw.gcd_gcm_activities')
-                            and omit <> true
+                            --and omit <> true
                         then
 
                         drop_table2(activities, email_optins_log);
@@ -760,13 +761,15 @@ begin
 
 
                        else
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'gcd_dw.gcd_gcm_activities or OMIT true', sysdate,'NOT POPULATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'gcd_dw.gcd_gcm_activities', sysdate,'NOT POPULATED');
                        end if;
 
 
                     --------- prepare email sent history ---------------
 
-                        if is_table_populated('dm_metrics.LIST_MGMT_CONTACT_HISTORY') then
+                        if is_table_populated('dm_metrics.LIST_MGMT_CONTACT_HISTORY')
+                            and omit <> true
+                        then
 
                         drop_table2(email_sent_hist1, email_optins_log);
                         drop_table2(email_sent_hist2, email_optins_log);
