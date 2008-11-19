@@ -1190,7 +1190,7 @@ begin
 
                 view_stmt := 'create or replace view ' || table_name || '_vw as
                     select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
-                    a.email_permission
+                    a.email_permission3 email_permission
                     from ' || table_name || ' a';
 
                 begin
