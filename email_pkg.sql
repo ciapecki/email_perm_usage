@@ -37,7 +37,7 @@ procedure drop_table2(table_name in varchar2, log_table in varchar2)
 is
    err_num NUMBER;
    err_msg VARCHAR2(100);
-   sqlstmt varchar2(4000) := '';
+   sqlstmt varchar2(32766) := '';
    log_stmt varchar2(4000) := '';
 begin
     sqlstmt := 'drop table ' || table_name || ' purge';
@@ -103,7 +103,7 @@ is
    err_msg VARCHAR2(100);
    table_name varchar2(30) := 'EMAIL_OPTINS';
    email_optins_log    varchar2(30) := 'email_optins_log';
-   sqlstmt varchar2(4000) := '';
+   sqlstmt varchar2(32000) := '';
    view_stmt varchar2(4000) := '';
 
    all_opportunities varchar2(61) := 'KCIERPISZ.SUMANT_OPPTS1';
@@ -637,36 +637,8 @@ begin
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 created from ' || table_name || '_FLAGS', sysdate,'NOT CREATED - ' || err_msg);
                             commit;
                          end;
-                       else
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS', sysdate,'NOT POPULATED');
-
-                       end if;
-
-
-                       if is_table_populated(table_name || '_FLAGS2')
-                            and is_table_populated('gcd_dw.gcd_individuals')
-                        then
-
-                        /*
-                        drop_table2(table_name || '_FLAGS3', email_optins_log);
-                        begin
-                            sqlstmt := 'create table ' || table_name || '_FLAGS3 as
-                                        select a.*, b.org_id, b.org_party_id, b.last_email_contacted_date
-                                        from ' || table_name || '_FLAGS2 a, gcd_dw.gcd_individuals b
-                                        where a.individual_id = b.individual_id
-                                        ';
-                            execute immediate sqlstmt;
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3', sysdate,'CREATED');
-                            commit;
-                         exception when others then
-                            err_msg := SUBSTR(SQLERRM, 1, 100);
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3',sysdate,'NOT CREATED - ' || err_msg);
-                            commit;
-                         end;
-                        */
-                        
-                        begin
-                            --sqlstmt := 'create index bt_opt_fl3_org on ' || table_name || '_FLAGS3' || ' (org_id)';
+                         
+                         begin
                             sqlstmt := 'create index bt_opt_fl2_org on ' || table_name || '_FLAGS2' || ' (org_id)';
                             execute immediate sqlstmt;
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 INDEX org_id', sysdate,'CREATED');
@@ -678,16 +650,17 @@ begin
                         end;
 
                        else
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2', sysdate,'NOT POPULATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS', sysdate,'NOT POPULATED');
+
                        end if;
 
-
                        if is_table_populated(table_name || '_FLAGS2') then
-
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2', sysdate,'POPULATED');
+                            commit;
 
                         drop_table2(table_name || '_FLAGS4', email_optins_log);
                         begin
-                            sqlstmt := 'create table ' || table_name || '_FLAGS4 as
+                            sqlstmt := 'create table ' || table_name || '_FLAGS4 nologging as
                             select a.*, b.gsi_party_id, b.duns_number
                             from ' || table_name || '_flags2 a, gcd_dw.lb_organizations_eu_vw b
                             where a.org_id = b.org_id (+)
@@ -717,7 +690,7 @@ begin
                         end;
 
                        else
-                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS3', sysdate,'NOT POPULATED');
+                            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2', sysdate,'NOT POPULATED');
                        end if;
 
 
@@ -1024,7 +997,8 @@ begin
                                         (case
                                          when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
                                                     or a.suppression is not null
-                                                    or coalesce(a.contact_email_prfl,a.contact_email_prfl2,suppression) is null
+                                                    or coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
+                                                        and a.suppression is null
                                                         and a.gcd_services = ''N''
                                           then ''N''
                                         when
@@ -1065,7 +1039,105 @@ begin
                                                 and nvl(a.gcd_services,''Y'') = ''Y''
                                                 and nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
                                                 then ''Y''
-                                          end) email_permission
+                                          end) email_permission,
+
+     (case
+        when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
+            or a.suppression is not null
+         then ''N''
+
+        when coalesce(a.contact_email_prfl,a.contact_email_prfl2) = ''Y''
+             and a.suppression is null then ''Y''
+
+        when (nvl(a.op_date,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+		      or nvl(a.tar_date_partyid,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+              or nvl(a.tar_date_duns,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+		      or a.customer is not null
+		      or nvl(a.activity_date18,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+			  )
+              and coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
+              and a.suppression is null
+              then ''Y''
+
+        when
+            nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
+            AND coalesce(a.contact_email_prfl, a.contact_email_prfl2) is null
+            and a.suppression is null
+          then ''Y''
+
+        when
+            nvl(a.sub_region_name,''A'') not in (''MIDDLE EAST'',''AFRICA'')
+            and coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
+            and a.suppression is null
+          then null
+    end) email_permission2,
+                                          
+         (case
+        when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
+            or a.suppression is not null
+         then ''N''
+
+        when (a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y'')
+             and a.suppression is null then ''Y''
+
+        when (nvl(a.op_date,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+		      or nvl(a.tar_date_partyid,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+              or nvl(a.tar_date_duns,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+		      or a.customer is not null
+		      or nvl(a.activity_date18,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+			  )
+              and coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
+              and a.suppression is null
+              then ''Y''
+
+        when nvl(a.gcd_services,''A'') = ''Y'' or nvl(a.correspondence1,''A'') = ''Y'' then ''Y''
+
+        when nvl(a.gcd_services,''A'') = ''N'' or nvl(a.correspondence1,''A'') = ''N'' then ''N''
+
+        when
+            nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
+            and (nvl(a.gcd_services,''Y'') = ''Y''  or nvl(a.correspondence1,''Y'') = ''Y'')
+          then ''Y''
+
+        when
+            nvl(a.sub_region_name,''A'') not in (''MIDDLE EAST'',''AFRICA'')
+            and coalesce(a.gcd_services, a.correspondence1) is null
+          then null
+    end) email_permission3,
+
+                                          
+    (case
+        when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
+            or a.suppression is not null
+         then ''N''
+
+        when (a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y'')
+             and a.suppression is null then ''Y''
+
+        when (nvl(a.op_date,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+		      or nvl(a.tar_date_partyid,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+              or nvl(a.tar_date_duns,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+		      or a.customer is not null
+		      or nvl(a.activity_date18,add_months(sysdate,-60)) >= add_months(sysdate,-18)
+			  )
+              and coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
+              and a.suppression is null
+              then ''Y''
+
+        when nvl(a.gcd_services,''A'') = ''N'' or nvl(a.correspondence1,''A'') = ''N'' then ''N''
+        when nvl(a.gcd_services,''A'') = ''Y'' or nvl(a.correspondence1,''A'') = ''Y'' then ''Y''
+
+        when
+            nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
+            and (nvl(a.gcd_services,''Y'') = ''Y''  or nvl(a.correspondence1,''Y'') = ''Y'')
+          then ''Y''
+
+        when
+            nvl(a.sub_region_name,''A'') not in (''MIDDLE EAST'',''AFRICA'')
+            and coalesce(a.gcd_services, a.correspondence1) is null
+          then null
+    end) email_permission4
+
                                         from ' || table_name || '_FLAGS5 a';
                             execute immediate sqlstmt;
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' created from ' || table_name || '_FLAGS5', sysdate,'CREATED');
