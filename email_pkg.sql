@@ -91,7 +91,7 @@ CONTACT_EMAIL_PRFL2,GCD_SERVICES,SUPPRESSION,CORRESPONDENCE1,
 OPTIN,OP_DATE1,OP_DATE2,OP_DATE,ORG_ID,ORG_PARTY_ID,
 LAST_EMAIL_CONTACTED_DATE,GSI_PARTY_ID,DUNS_NUMBER,
 TAR_DATE_PARTYID,TAR_DATE_DUNS,CUSTOMER,ACTIVITY_DATE18,
-EMAIL_HIST_SENT_DATE,EMAIL_PERMISSION
+EMAIL_HIST_SENT_DATE,EMAIL_PERMISSION3
 
 */
 
@@ -1172,6 +1172,10 @@ begin
                             sqlstmt := 'create index bt_em_op_email1 on ' || table_name || ' (email_address)';
                             execute immediate sqlstmt;
                             sqlstmt := 'CREATE INDEX FB_em_op_rowid1 ON ' || table_name || ' (  nvl(contact_rowid,prospect_rowid)  )';
+                            execute immediate sqlstmt;
+                            sqlstmt := 'create bitmap index bm_em_op_perm4 on ' || table_name || ' (email_permission4)';
+                            execute immediate sqlstmt;
+
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' indexes', sysdate,'CREATED');
                             commit;
                          exception when others then
@@ -1190,7 +1194,7 @@ begin
 
                 view_stmt := 'create or replace view ' || table_name || '_vw as
                     select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
-                    a.email_permission3 email_permission
+                    a.email_permission4 email_permission
                     from ' || table_name || ' a';
 
                 begin

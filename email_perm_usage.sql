@@ -295,6 +295,7 @@ sum(case when (a.vani_prfl = 'Y' or a.vani_prfl_email = 'Y'
 		and nvl(a.vani_prfl,'A') <> 'N' and nvl(a.vani_prfl_email,'A') <> 'N'
 		and a.suppression is null or a.gcd_services = 'Y'
 		then 1 else 0 end) future_optins,
+
 sum(case when (a.vani_prfl = 'Y' or a.vani_prfl_email = 'Y'
 		or a.op_date >= add_months(sysdate,-6)
 		or a.tar_date_partyid >= add_months(sysdate,-6) or
@@ -312,6 +313,7 @@ sum(case when (a.vani_prfl = 'Y' or a.vani_prfl_email = 'Y' or a.gcd_services = 
 from emea_optins_flags6 a
 group by rollup (a.sub_region_name)
 
+drop table new_optin_rules2_bak;
 rename new_optin_rules2 to new_optin_rules2_bak;
 
 drop table new_optin_rules2;
@@ -326,57 +328,98 @@ sum(case when a.customer is not null
 	then 1 else 0 end) ins_bas_tar_oport_6_mnths,
 sum(case when 
 			(a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) >= add_months(sysdate,-6) 
 			and nvl(a.activity_date18,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and a.customer is null
 		then 1 else 0 end) count_1,
+sum(case when 
+			(nvl(a.gcd_services,'A') = 'Y' or nvl(a.correspondence1,'A') = 'Y') and a.suppression is null   -- GCD Y
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
+			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) >= add_months(sysdate,-6) 
+			and nvl(a.activity_date18,add_months(sysdate,-50)) < add_months(sysdate,-6)
+			and a.customer is null
+		then 1 else 0 end) count_11,		
 sum(case when (a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) >= add_months(sysdate,-6)
 			and nvl(a.activity_date18,add_months(sysdate,-50)) >= add_months(sysdate,-6)
 			and a.customer is null
 		 then 1 else 0 end) count_2,
+sum(case when (nvl(a.gcd_services,'A') = 'Y' or nvl(a.correspondence1,'A') = 'Y') and a.suppression is null   -- GCD Y
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
+			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) >= add_months(sysdate,-6)
+			and nvl(a.activity_date18,add_months(sysdate,-50)) >= add_months(sysdate,-6)
+			and a.customer is null
+		 then 1 else 0 end) count_22,		 
 sum(case when (a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) >= add_months(sysdate,-6)
 			and nvl(a.activity_date18,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and a.customer is not null
 		 then 1 else 0 end) count_3,
 sum(case when (a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) >= add_months(sysdate,-6)
 			and nvl(a.activity_date18,add_months(sysdate,-50)) >= add_months(sysdate,-6)
 			and a.customer is not null
 		 then 1 else 0 end) count_4,
 sum(case when (a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and nvl(a.activity_date18,add_months(sysdate,-50)) >= add_months(sysdate,-6)
 			and a.customer is not null
 		 then 1 else 0 end) count_5,
 sum(case when (a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and nvl(a.activity_date18,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and a.customer is not null
 		 then 1 else 0 end) count_6,		 
 sum(case when (a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and nvl(a.activity_date18,add_months(sysdate,-50)) >= add_months(sysdate,-6)
 			and a.customer is null
 		 then 1 else 0 end) count_7,		 
 sum(case when (a.gcd_services = 'Y' or a.correspondence1 = 'Y') and a.suppression is null   -- GCD Y
-			and a.vani_prfl is null and a.vani_prfl_email is null						  -- null PROFILE
+			and a.contact_email_prfl is null and a.contact_email_prfl2 is null						  -- null PROFILE
 			and nvl(a.email_hist_sent_date,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and nvl(a.activity_date18,add_months(sysdate,-50)) < add_months(sysdate,-6)
 			and a.customer is null
 		 then 1 else 0 end) count_8
- from emea_optins_flags6 a
+ from email_optins_flags6 a
+ where a.sub_region_name not in ('MIDDLE EAST','AFRICA')
 group by rollup (a.sub_region_name)
 
 select * from new_optin_rules2
+
+select a.count_1 from new_optin_rules2 a
+where a.sub_region_name is null
+union all
+select a.count_2 from new_optin_rules2 a
+where a.sub_region_name is null
+union all
+select a.count_3 from new_optin_rules2 a
+where a.sub_region_name is null
+union all
+select a.count_4 from new_optin_rules2 a
+where a.sub_region_name is null
+union all
+select a.count_5 from new_optin_rules2 a
+where a.sub_region_name is null
+union all
+select a.count_6 from new_optin_rules2 a
+where a.sub_region_name is null
+union all
+select a.count_7 from new_optin_rules2 a
+where a.sub_region_name is null
+union all
+select a.count_8 from new_optin_rules2 a
+where a.sub_region_name is null
+
+
+
 
 
 select * from emea_optins_flags6 a
@@ -413,5 +456,15 @@ where a.classification = 'ERS'
 and a.activity_date > add_months(sysdate,-9)
 and a.activity_date < add_months(sysdate,-8)
 and rownum < 10
+
+select count(distinct a.duns) from competitive_prods a
+where a.vendor = 'TUDLA'
+
+select count(distinct b.duns_number) from lm_lad.tudla_std_prod a, lm_lad.tudla_std_prod_final b
+where greatest(a.bi,a.crm,a.erp,a.app_ibm,a.app_microsoft,a.app_sap,a.db2,a.ms_sql) > 0
+and a.site_id_number = b.site_id_number
+
+select count(distinct a.confidence_code) from lm_lad.tudla_std_prod a
+where a.
 
 
