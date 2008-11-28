@@ -1,10 +1,6 @@
 PACKAGE BODY EMAIL_PKG
 IS
 
-/*
-    git revision: 4dc55942c235798601107d2b742bd3159ed96185
-*/
-
 function is_table_populated
     (tableName in varchar2)
     return boolean is
@@ -49,6 +45,64 @@ exception when others then
     err_msg := SUBSTR(SQLERRM, 1, 100);
     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' DROP',sysdate,'NOT DROPPED - ' || err_msg);
     commit;
+end;
+
+procedure populate_diff_table(table_name in varchar2)
+is
+   err_num NUMBER;
+   err_msg VARCHAR2(100);
+   sqlstmt varchar2(32766) := '';
+   log_stmt varchar2(4000) := '';
+   log_table varchar2(61) := 'email_optins_log';
+   email_optins_table varchar2(61) := 'email_optins';
+begin
+
+    drop_table2(table_name || '_bak',log_table);
+
+    begin
+        sqlstmt := 'rename ' || table_name || ' to ' || table_name || '_bak';
+        execute immediate sqlstmt;
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_bak create',sysdate,'CREATED - ');
+        commit;
+    exception when others then
+        err_msg := SUBSTR(SQLERRM, 1, 100);
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_bak create',sysdate,'NOT CREATED - ' || err_msg);
+        commit;
+    end;
+    
+    begin
+        sqlstmt := 'create table ' || table_name || '2 as
+                    select * from ' || table_name || '_bak a
+                    union all
+                    select a.*, sysdate from
+                    (
+                        select * from ' || email_optins_table || '_bak
+                        minus
+                        select * from ' || email_optins_table || '
+                    ) a';
+
+        execute immediate sqlstmt;
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' create',sysdate,'CREATED - ');
+        commit;
+    exception when others then
+        err_msg := SUBSTR(SQLERRM, 1, 100);
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' create',sysdate,'NOT CREATED - ' || err_msg);
+        commit;
+    end;
+
+    drop_table2(table_name,log_table);
+
+    begin
+        sqlstmt := 'rename ' || table_name || '2 to ' || table_name;
+        execute immediate sqlstmt;
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' create',sysdate,'CREATED - ');
+        commit;
+    exception when others then
+        err_msg := SUBSTR(SQLERRM, 1, 100);
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' create',sysdate,'NOT CREATED - ' || err_msg);
+        commit;
+    end;
+
 end;
 
 --- REQUIREMENTS:
@@ -1225,6 +1279,7 @@ begin
     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'PROC_' || table_name, sysdate,'END');
     commit;
 
+    populate_diff_table('email_optins_diff1');
 end;
 
 END;
