@@ -90,7 +90,7 @@ begin
         commit;
     end;
 
-    drop_table2(table_name,log_table);
+    --drop_table2(table_name,log_table);
 
     begin
         sqlstmt := 'rename ' || table_name || '2 to ' || table_name;
@@ -1208,6 +1208,7 @@ begin
                             execute immediate 'drop index bm_em_op_country1';
                             execute immediate 'drop index bm_em_op_region1';
                             execute immediate 'drop index FB_em_op_rowid1';
+                            execute immediate 'drop index bm_em_op_perm4';
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' indexes', sysdate,'DROPED');
                             commit;
                          exception when others then
