@@ -82,11 +82,11 @@ begin
                     ) a';
 
         execute immediate sqlstmt;
-        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' create',sysdate,'CREATED - ');
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '2 create',sysdate,'CREATED - ');
         commit;
     exception when others then
         err_msg := SUBSTR(SQLERRM, 1, 100);
-        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' create',sysdate,'NOT CREATED - ' || err_msg);
+        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '2 create',sysdate,'NOT CREATED - ' || err_msg);
         commit;
     end;
 
@@ -298,11 +298,11 @@ begin
 
             begin
 
-            sqlstmt := 'create index bt_vg_prfl_new_ind on vg_prfl (new_individual_id)';
+            sqlstmt := 'create index bt_vg_prfl_new_ind on vg_prfl (new_individual_id) tablespace dm_metrics_indx';
             execute immediate sqlstmt;
-            sqlstmt := 'create index bt_vg_prfl_contact_email on vg_prfl (contact_email)';
+            sqlstmt := 'create index bt_vg_prfl_contact_email on vg_prfl (contact_email) tablespace dm_metrics_indx';
             execute immediate sqlstmt;
-            sqlstmt := 'create index bt_vg_prfl_email on vg_prfl (email_address)';
+            sqlstmt := 'create index bt_vg_prfl_email on vg_prfl (email_address) tablespace dm_metrics_indx';
             execute immediate sqlstmt;
 
                 dbms_output.put_line(sqlstmt);
@@ -354,7 +354,7 @@ begin
             end;
 
             begin
-            sqlstmt := 'create index bt_' || table_name || '_tmp2_em on ' || table_name || '_tmp2 (email_address)';
+            sqlstmt := 'create index bt_' || table_name || '_tmp2_em on ' || table_name || '_tmp2 (email_address) tablespace dm_metrics_indx';
             dbms_output.put_line(sqlstmt);
             execute immediate sqlstmt;
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp2 INDEX on email_address', sysdate,'INDEX CREATED');
@@ -504,13 +504,13 @@ begin
 
             begin
                 execute immediate '
-                    CREATE Unique INDEX BT_' || table_name || '_FLAGS_ind_id ON ' || table_name || '_FLAGS (  individual_id  )
+                    CREATE Unique INDEX BT_' || table_name || '_FLAGS_ind_id ON ' || table_name || '_FLAGS (  individual_id  ) tablespace dm_metrics_indx
                     COMPUTE STATISTICS';
                 execute immediate '
-                    CREATE INDEX BT_' || table_name || '_FLAGS_email ON ' || table_name || '_FLAGS (  email_address  )
+                    CREATE INDEX BT_' || table_name || '_FLAGS_email ON ' || table_name || '_FLAGS (  email_address  ) tablespace dm_metrics_indx
                     COMPUTE STATISTICS';
                 execute immediate '
-                    CREATE INDEX FB_' || table_name || '_FLAGS_rowid ON ' || table_name || '_FLAGS (  nvl(contact_rowid,prospect_rowid)  )
+                    CREATE INDEX FB_' || table_name || '_FLAGS_rowid ON ' || table_name || '_FLAGS (  nvl(contact_rowid,prospect_rowid)  ) tablespace dm_metrics_indx
                     COMPUTE STATISTICS';
 
                     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS indexes', sysdate,'CREATED');
@@ -563,7 +563,7 @@ begin
             end;
 
             begin
-            sqlstmt := 'create unique index bt_' || opt_contacts || '_cnt_id on ' || opt_contacts || ' (contact_prospect_rowid)';
+            sqlstmt := 'create unique index bt_' || opt_contacts || '_cnt_id on ' || opt_contacts || ' (contact_prospect_rowid) tablespace dm_metrics_indx';
             dbms_output.put_line(sqlstmt);
             execute immediate sqlstmt;
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,opt_contacts || ' INDEX CREATE', sysdate,'CREATED');
@@ -599,7 +599,7 @@ begin
             end;
 
             begin
-            sqlstmt := 'create unique index bt_opt_em_email on ' || opt_emails || ' (email_address)';
+            sqlstmt := 'create unique index bt_opt_em_email on ' || opt_emails || ' (email_address) tablespace dm_metrics_indx';
             dbms_output.put_line(sqlstmt);
             execute immediate sqlstmt;
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,opt_emails || ' INDEX CREATE', sysdate,'CREATED');
@@ -647,9 +647,9 @@ begin
             end;
 
             begin
-            sqlstmt := 'create index bt_' || tar1 || '_email on ' || tar1 || ' (gsi_party_id)';
+            sqlstmt := 'create index bt_' || tar1 || '_email on ' || tar1 || ' (gsi_party_id) tablespace dm_metrics_indx';
             execute immediate sqlstmt;
-            sqlstmt := 'create index bt_' || tar1 || '_duns on ' || tar1 || ' (duns_number)';
+            sqlstmt := 'create index bt_' || tar1 || '_duns on ' || tar1 || ' (duns_number) tablespace dm_metrics_indx';
             execute immediate sqlstmt;
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || ' INDEXes gsi_party_id and duns_number', sysdate,'CREATED');
             commit;
@@ -693,7 +693,7 @@ begin
                          end;
                          
                          begin
-                            sqlstmt := 'create index bt_opt_fl2_org on ' || table_name || '_FLAGS2' || ' (org_id)';
+                            sqlstmt := 'create index bt_opt_fl2_org on ' || table_name || '_FLAGS2' || ' (org_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 INDEX org_id', sysdate,'CREATED');
                             commit;
@@ -729,11 +729,11 @@ begin
                          end;
 
                         begin
-                            sqlstmt := 'create index bt_opt_fl4_part on ' || table_name || '_FLAGS4' || ' (gsi_party_id)';
+                            sqlstmt := 'create index bt_opt_fl4_part on ' || table_name || '_FLAGS4' || ' (gsi_party_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create index bt_opt_fl4_duns on ' || table_name || '_FLAGS4' || ' (duns_number)';
+                            sqlstmt := 'create index bt_opt_fl4_duns on ' || table_name || '_FLAGS4' || ' (duns_number) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create unique index bt_opt_fl4_ind on ' || table_name || '_FLAGS4' || ' (individual_id)';
+                            sqlstmt := 'create unique index bt_opt_fl4_ind on ' || table_name || '_FLAGS4' || ' (individual_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS4 INDEXes on gsi_party_id and org_id and ind_id', sysdate,'CREATED');
                             commit;
@@ -788,9 +788,9 @@ begin
                          end;
 
                          begin
-                            sqlstmt := 'create index bt_tar1_part_ind on ' || tar1 || '_part' || ' (individual_id)';
+                            sqlstmt := 'create index bt_tar1_part_ind on ' || tar1 || '_part' || ' (individual_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create index bt_tar1_duns_ind on ' || tar1 || '_duns' || ' (individual_id)';
+                            sqlstmt := 'create index bt_tar1_duns_ind on ' || tar1 || '_duns' || ' (individual_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
 
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,tar1 || '_part and _duns INDEXes on individual_id', sysdate,'CREATED');
@@ -817,7 +817,7 @@ begin
                         drop_table2(activities, email_optins_log);
 
                         begin
-                            sqlstmt := 'create table ' || activities || ' nologging as
+                            sqlstmt := 'create table ' || activities || ' tablespace DM_METRICS_DATA nologging as
                             select a.individual_id, max(a.activity_date) act_date from gcd_dw.gcd_gcm_activities a
                             where a.activity_date >= add_months(sysdate,-18)
                             and (a.classification in (''SDS'',''Software Downloaded'',''OTN SOFTWARE DOWNLOAD'',
@@ -836,7 +836,7 @@ begin
                          end;
 
                         begin
-                            sqlstmt := 'create unique index bt_acts_ind on ' || activities || ' (individual_id)';
+                            sqlstmt := 'create unique index bt_acts_ind on ' || activities || ' (individual_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,activities || ' INDEX on individual_id', sysdate,'CREATED');
                             commit;
@@ -968,9 +968,9 @@ begin
                          end;
 
                          begin
-                            sqlstmt := 'create unique index bt_em_fl5_ind on ' || table_name || '_FLAGS5 (individual_id)';
+                            sqlstmt := 'create unique index bt_em_fl5_ind on ' || table_name || '_FLAGS5 (individual_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create index bt_em_fl5_em on ' || table_name || '_FLAGS5 (email_address)';
+                            sqlstmt := 'create index bt_em_fl5_em on ' || table_name || '_FLAGS5 (email_address) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
 
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS5 indexes on ind_id and email_address', sysdate,'CREATED');
@@ -1093,7 +1093,7 @@ begin
                                                 and nvl(a.gcd_services,''Y'') = ''Y''
                                                 and nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
                                                 then ''Y''
-                                          end) email_permission,
+                                          end) email_permission1,
 
      (case
         when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
@@ -1218,17 +1218,17 @@ begin
                          end;
 
                         begin
-                            sqlstmt := 'create unique index bt_em_op_ind1 on ' || table_name || ' (individual_id)';
+                            sqlstmt := 'create unique index bt_em_op_ind1 on ' || table_name || ' (individual_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create bitmap index bm_em_op_country1 on ' || table_name || ' (country_id)';
+                            sqlstmt := 'create bitmap index bm_em_op_country1 on ' || table_name || ' (country_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create bitmap index bm_em_op_region1 on ' || table_name || ' (sub_region_name)';
+                            sqlstmt := 'create bitmap index bm_em_op_region1 on ' || table_name || ' (sub_region_name) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create index bt_em_op_email1 on ' || table_name || ' (email_address)';
+                            sqlstmt := 'create index bt_em_op_email1 on ' || table_name || ' (email_address) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'CREATE INDEX FB_em_op_rowid1 ON ' || table_name || ' (  nvl(contact_rowid,prospect_rowid)  )';
+                            sqlstmt := 'CREATE INDEX FB_em_op_rowid1 ON ' || table_name || ' (  nvl(contact_rowid,prospect_rowid)  ) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
-                            sqlstmt := 'create bitmap index bm_em_op_perm4 on ' || table_name || ' (email_permission4)';
+                            sqlstmt := 'create bitmap index bm_em_op_perm4 on ' || table_name || ' (email_permission4) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
 
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || ' indexes', sysdate,'CREATED');
