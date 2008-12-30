@@ -939,7 +939,7 @@ begin
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS5', sysdate,'CREATING...');
                             commit;
 
-                            sqlstmt := 'create table ' || table_name || '_flags5 nologging as
+                            sqlstmt := 'create table ' || table_name || '_flags5 tablespace DM_METRICS_DATA nologging as
                                         select /*+ index(b bt_tar1_part_ind)
                             		    index(c bt_tar1_duns_ind) index(d BT_PRODS_EMEA_FLAGS_ORG_ID)
                                 		index(f bt_acts_ind) */
@@ -1046,7 +1046,7 @@ begin
                         end;
 
                         begin
-                            sqlstmt := 'create table ' || table_name || ' nologging as
+                            sqlstmt := 'create table ' || table_name || ' tablespace dm_metrics_data nologging as
                                         select a.*,
                                         (case
                                          when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
