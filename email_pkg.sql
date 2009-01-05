@@ -714,7 +714,7 @@ begin
 
                         drop_table2(table_name || '_FLAGS4', email_optins_log);
                         begin
-                            sqlstmt := 'create table ' || table_name || '_FLAGS4 nologging as
+                            sqlstmt := 'create table ' || table_name || '_FLAGS4 tablespace DM_METRICS_DATA nologging as
                             select a.*, b.gsi_party_id, b.duns_number
                             from ' || table_name || '_flags2 a, gcd_dw.lb_organizations_eu_vw b
                             where a.org_id = b.org_id (+)
@@ -1260,6 +1260,20 @@ begin
                     err_msg := SUBSTR(SQLERRM, 1, 100);
                     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'email_optins_vw view', sysdate,'NOT CREATED - ' || err_msg);
                     commit;
+                    
+                    begin
+                        view_stmt := 'create or replace view ' || table_name || '_vw as
+                        select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
+                        a.email_permission4 email_permission
+                        from ' || table_name || '_bak a';
+                        execute immediate view_stmt;
+                        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'email_optins_vw view FROM _BAK', sysdate,'CREATED');
+                        commit;
+                    exception when others then
+                        err_msg := SUBSTR(SQLERRM, 1, 100);
+                        insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'email_optins_vw view FROM _BAK', sysdate,'NOT CREATED - ' || err_msg);
+                        commit;
+                    end;
                 end;
 
 
