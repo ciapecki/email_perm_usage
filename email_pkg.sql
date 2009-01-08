@@ -205,7 +205,7 @@ ROW_ID                                    VARCHAR2(4000)
             )               	
 */
 
-   email_sent_hist1  varchar2(61) := 'email_sent_h1'; -- based on individual_id
+ --  email_sent_hist1  varchar2(61) := 'email_sent_h1'; -- based on individual_id
 /* table that will contain grouped by individual_id last_email_date
     based on information coming from dm_metrics.LIST_MGMT_CONTACT_HISTORY
     with condition:
@@ -214,7 +214,7 @@ ROW_ID                                    VARCHAR2(4000)
                 and a.list_sent_date is not null
 */
 
-   email_sent_hist2  varchar2(61) := 'email_sent_h2'; -- based on email_address
+ --  email_sent_hist2  varchar2(61) := 'email_sent_h2'; -- based on email_address
 /* table that will contain grouped by email_address last_email_date
     based on information coming from dm_metrics.LIST_MGMT_CONTACT_HISTORY
           where upper(a.contact_channel) = ''EMAIL''
@@ -1159,7 +1159,6 @@ begin
           then null
     end) email_permission3,
 
-                                          
     (case
         when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
             or a.suppression is not null
