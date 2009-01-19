@@ -88,6 +88,17 @@ begin
         err_msg := SUBSTR(SQLERRM, 1, 100);
         insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '2 create',sysdate,'NOT CREATED - ' || err_msg);
         commit;
+        begin
+            sqlstmt := 'create table ' || table_name || '2 as
+                        select * from ' || table_name || '_bak a';
+            execute immediate sqlstmt;
+            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '2 create in EXCEPTION',sysdate,'CREATED - ');
+            commit;
+        exception when others then
+            err_msg := SUBSTR(SQLERRM, 1, 100);
+            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '2 create in EXCEPTION',sysdate,'NOT CREATED - ' || err_msg);
+            commit;
+        end;
     end;
 
     --drop_table2(table_name,log_table);
@@ -205,7 +216,7 @@ ROW_ID                                    VARCHAR2(4000)
             )               	
 */
 
- --  email_sent_hist1  varchar2(61) := 'email_sent_h1'; -- based on individual_id
+   email_sent_hist1  varchar2(61) := 'email_sent_h1'; -- based on individual_id
 /* table that will contain grouped by individual_id last_email_date
     based on information coming from dm_metrics.LIST_MGMT_CONTACT_HISTORY
     with condition:
@@ -214,7 +225,7 @@ ROW_ID                                    VARCHAR2(4000)
                 and a.list_sent_date is not null
 */
 
- --  email_sent_hist2  varchar2(61) := 'email_sent_h2'; -- based on email_address
+   email_sent_hist2  varchar2(61) := 'email_sent_h2'; -- based on email_address
 /* table that will contain grouped by email_address last_email_date
     based on information coming from dm_metrics.LIST_MGMT_CONTACT_HISTORY
           where upper(a.contact_channel) = ''EMAIL''
@@ -222,7 +233,7 @@ ROW_ID                                    VARCHAR2(4000)
                 and a.list_sent_date is not null
 */
 
-   prods_emea_flags  varchar2(61) := 'kcierpisz.prods_emea_flags';
+   prods_emea_flags  varchar2(61) := 'kcierpisz.prods_emea_flags_mu_org';
 /* table that contains customers -> EMEA only */
 
 begin
@@ -1159,6 +1170,7 @@ begin
           then null
     end) email_permission3,
 
+                                          
     (case
         when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
             or a.suppression is not null
@@ -1297,4 +1309,3 @@ begin
 end;
 
 END;
-
