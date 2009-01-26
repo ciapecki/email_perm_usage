@@ -171,26 +171,38 @@ is
    sqlstmt varchar2(32000) := '';
    view_stmt varchar2(4000) := '';
 
-   all_opportunities varchar2(61) := 'KCIERPISZ.SUMANT_OPPTS1';
-/*
-    table containing all_opportunities -> prepared in GCM "Custom Opportunity Segmentation" SA:
-NAME                            Null?     Type
-------------------------------- --------- -----
-Contact or Prospect ID                    VARCHAR2(4000)
-Email Address                             VARCHAR2(4000)
-ROW_ID                                    VARCHAR2(4000)
-Opportunity Name                          VARCHAR2(4000)
+                 --all_opportunities varchar2(61) := 'KCIERPISZ.SUMANT_OPPTS1';
+              /*
+                  table containing all_opportunities -> prepared in GCM "Custom Opportunity Segmentation" SA:
+              NAME                            Null?     Type
+              ------------------------------- --------- -----
+              Contact or Prospect ID                    VARCHAR2(4000)
+              Email Address                             VARCHAR2(4000)
+              ROW_ID                                    VARCHAR2(4000)
+              Opportunity Name                          VARCHAR2(4000)
 
+              */
+                 --opts_details      varchar2(61) := 'KCIERPISZ.OPPTS3';
+              /*
+                  table containing all_opportunities -> prepared in GCM "Custom Contacts Opportunity Segmentation" SA:
+              NAME                            Null?     Type
+              ------------------------------- --------- -----
+              Opty Status                               VARCHAR2(4000)
+              Opened Date                               VARCHAR2(4000)
+              ROW_ID                                    VARCHAR2(4000)
+              */
+
+
+   opportunities  varchar2(61) := 'KCIERPISZ.CHRIS_OPPTS_EMEA18';
+/* indexes on contact_id and EMAIL_ADDRESS
+ Name          Null?          Typ
+ -------------------------------------
+ OPTY_STATUS            VARCHAR2(4000)
+ OPENED_DATE            VARCHAR2(4000)
+ CONTACT_ID             VARCHAR2(4000)
+ EMAIL_ADDRESS          VARCHAR2(4000)
 */
-   opts_details      varchar2(61) := 'KCIERPISZ.OPPTS3';
-/*
-    table containing all_opportunities -> prepared in GCM "Custom Contacts Opportunity Segmentation" SA:
-NAME                            Null?     Type
-------------------------------- --------- -----
-Opty Status                               VARCHAR2(4000)
-Opened Date                               VARCHAR2(4000)
-ROW_ID                                    VARCHAR2(4000)
-*/
+
    opt_contacts      varchar2(61) := 'oppt3110_distinct';
 /* table that will contain grouped by contact_prospect_rowid, email_address, op_date */
 
@@ -538,13 +550,13 @@ begin
 
            ---------preparing opportunities tables ---------------
 
-            --   all_opportunities = 'KCIERPISZ.SUMANT_OPPTS1';
-            --   opts_details      = 'KCIERPISZ.OPPTS3';
+                            --   all_opportunities = 'KCIERPISZ.SUMANT_OPPTS1';
+                            --   opts_details      = 'KCIERPISZ.OPPTS3';
+            --   opportunities = 'KCIERPISZ.CHRIS_OPPTS_EMEA18';
 
-         if is_table_populated(all_opportunities) and
-            is_table_populated(opts_details)
+         if is_table_populated(opportunities)
          then
-            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,all_opportunities || ' and ' || opts_details || ' POPULATED', sysdate,'POPULATED');
+            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,opportunities || ' POPULATED', sysdate,'POPULATED');
             commit;
 
                 drop_table2(opt_contacts, email_optins_log);
@@ -554,13 +566,12 @@ begin
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,opt_contacts || ' CREATE', sysdate,'CREATING...');
             commit;
             sqlstmt := 'create table ' || opt_contacts || ' as
-                        select a."Contact or Prospect ID" contact_prospect_rowid,
-                        max(upper(trim(a."Email Address"))) email_address,
-                        max(to_date(b."Opened Date",''YYYY-MM-DD HH24:MI:SS'')) op_date
-                        from ' || all_opportunities || ' a, ' || opts_details || ' b
-                        where a.row_id = b.row_id
-                        and b."Opty Status" not in (''Lead:Declined'',''No Opportunity'',''Lost'')
-                        group by a."Contact or Prospect ID"
+                        select a.contact_id contact_prospect_rowid,
+                        max(upper(trim(a.Email_Address))) email_address,
+                        max(to_date(a.Opened_Date,''YYYY-MM-DD HH24:MI:SS'')) op_date
+                        from ' || opportunities || ' a
+                        where a.Opty_Status not in (''Lead:Declined'',''No Opportunity'',''Lost'')
+                        group by a.Contact_ID
                         ';
 
             dbms_output.put_line(sqlstmt);
@@ -590,13 +601,12 @@ begin
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,opt_emails || ' CREATE', sysdate,'CREATING...');
             commit;
             sqlstmt := 'create table ' || opt_emails || ' as
-                        select upper(trim(a."Email Address")) email_address,
-                        max(to_date(b."Opened Date",''YYYY-MM-DD HH24:MI:SS'')) op_date
-                        from ' || all_opportunities || ' a, ' || opts_details || ' b
-                        where a.row_id = b.row_id
-                        and b."Opty Status" not in (''Lead:Declined'',''No Opportunity'',''Lost'')
-                        and a."Email Address" is not null
-                        group by upper(trim(a."Email Address"))
+                        select upper(trim(a.Email_Address)) email_address,
+                        max(to_date(a.Opened_Date,''YYYY-MM-DD HH24:MI:SS'')) op_date
+                        from ' || opportunities || ' a
+                        where a.Opty_Status not in (''Lead:Declined'',''No Opportunity'',''Lost'')
+                        and a.Email_Address is not null
+                        group by upper(trim(a.Email_Address))
                         ';
 
             dbms_output.put_line(sqlstmt);
