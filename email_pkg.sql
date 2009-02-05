@@ -69,7 +69,7 @@ begin
         insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_bak create',sysdate,'NOT CREATED - ' || err_msg);
         commit;
     end;
-    
+
     begin
         sqlstmt := 'create table ' || table_name || '2 as
                     select * from ' || table_name || '_bak a
@@ -163,7 +163,7 @@ EMAIL_HIST_SENT_DATE,EMAIL_PERMISSION3
 is
 
     omit boolean := false; --- just for testing to omit long running table creations
-    
+
    err_num NUMBER;
    err_msg VARCHAR2(100);
    table_name varchar2(30) := 'EMAIL_OPTINS';
@@ -219,7 +219,7 @@ is
 /* table that will contain grouped by individual_id act_date based on information coming from
         gcd_dw.gcd_gcm_activities
         act_date is the max date for the following condition:
-        
+
         activity_date >= add_months(sysdate,-18)
         and (a.classification in (''SDS'',''Software Downloaded'',''OTN SOFTWARE DOWNLOAD'',
                             	  ''Event - Walk-in'',''Event - Pre-Reg Attendee'')
@@ -712,7 +712,7 @@ begin
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS2 created from ' || table_name || '_FLAGS', sysdate,'NOT CREATED - ' || err_msg);
                             commit;
                          end;
-                         
+
                          begin
                             sqlstmt := 'create index bt_opt_fl2_org on ' || table_name || '_FLAGS2' || ' (org_id) tablespace dm_metrics_indx';
                             execute immediate sqlstmt;
@@ -978,7 +978,7 @@ begin
                                     and coalesce(d.db_inst(+),d.applications(+) ) is not null
                                     and a.individual_id = f.individual_id (+)
                                     ';
-                                    
+
                             execute immediate sqlstmt;
                             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_FLAGS5', sysdate,'CREATED');
                             commit;
@@ -1092,7 +1092,7 @@ begin
                                                 and a.suppression is null
 		                                  then ''Y''
 
-                                         
+
 
                                           when
                                                 a.contact_email_prfl is null and a.contact_email_prfl2 is null
@@ -1146,7 +1146,7 @@ begin
             and a.suppression is null
           then null
     end) email_permission2,
-                                          
+
          (case
         when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
             or a.suppression is not null
@@ -1180,7 +1180,7 @@ begin
           then null
     end) email_permission3,
 
-                                          
+
     (case
         when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
             or a.suppression is not null
@@ -1270,7 +1270,7 @@ begin
 
                 view_stmt := 'create or replace view ' || table_name || '_vw as
                     select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
-                    a.email_permission4 email_permission
+                    nvl(a.email_permission4,''N'') email_permission
                     from ' || table_name || ' a';
 
                 begin
@@ -1281,11 +1281,11 @@ begin
                     err_msg := SUBSTR(SQLERRM, 1, 100);
                     insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'email_optins_vw view', sysdate,'NOT CREATED - ' || err_msg);
                     commit;
-                    
+
                     begin
                         view_stmt := 'create or replace view ' || table_name || '_vw as
                         select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
-                        a.email_permission4 email_permission
+                        nvl(a.email_permission4,''N'') email_permission
                         from ' || table_name || '_bak a';
                         execute immediate view_stmt;
                         insert into email_optins_log values (email_optins_log_seq.NEXTVAL,'email_optins_vw view FROM _BAK', sysdate,'CREATED');
