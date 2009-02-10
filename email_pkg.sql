@@ -267,7 +267,7 @@ begin
                         a.org_id, a.org_party_id, a.last_email_contacted_date
                         from gcd_dw.gcd_individuals a, gcd_dw.gcd_countries b, gcd_dw.gcd_regions c
                         where
-                        a.marketing_status IN (''ACTIVE'', ''NEW'', ''INAPPROP CONTACT'',''SALES CONTACT'')
+                        a.marketing_status IN (''ACTIVE'', ''NEW'', ''INAPPROP CONTACT'')
                         and a.country_id in (2,3,5,6,11,14,15,17,20,21,23,27,28,33,34,35,37,39,41,42,48,49,50,53,54,56,57,58,59,64,66,67,68,69,70,71,73,74,75,76,79,80,81,82,83,84,85,86,88,91,92,96,99,100,104,105,106,107,110,111,112,116,117,119,120,121,122,123,124,125,126,128,129,130,133,134,136,137,138,139,142,143,146,147,149,152,153,154,157,158,162,163,172,173,175,176,177,178,179,184,185,186,187,188,189,191,192,194,195,196,197,199,200,203,204,205,206,209,210,212,216,217,218,221,222,223,224,228,235,236,238,239,242,243,244,246,247)
                         -- (103,201,207) -- embargo
                         --a.country_id in (2,3,5,6) -- TEST ONLY
@@ -433,6 +433,33 @@ begin
             end;
           end if;
 
+        -- PROCESS BOUNCES
+         if is_table_populated('dm_users.BOUNCED_EMAIL_FLAG_GLOBAL') then
+            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp31 bounces CREATE and dm_users.BOUNCED_EMAIL_FLAG_GLOBAL POPULATED', sysdate,'CREATING...');
+            commit;
+            begin
+            sqlstmt := 'create table ' || table_name || '_tmp31 nologging as
+                select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
+                a.org_id, a.org_party_id, a.last_email_contacted_date,
+                a.contact_email_prfl,a.contact_email_prfl2, max(case when b.contact_id is not null then 1 end) bounced
+                from ' || table_name || '_tmp3 a, dm_users.BOUNCED_EMAIL_FLAG_GLOBAL b
+                where coalesce(a.contact_rowid,a.prospect_rowid) = b.contact_id (+)
+                group by a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid,
+                a.org_id, a.org_party_id, a.last_email_contacted_date,
+                a.prospect_rowid, a.contact_email_prfl, a.contact_email_prfl2,a.suppression';
+
+            dbms_output.put_line(sqlstmt);
+            execute immediate sqlstmt;
+            insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp31 bounces CREATE', sysdate,'CREATED');
+            commit;
+            exception when others then
+                err_msg := SUBSTR(SQLERRM, 1, 100);
+                insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp31 bounces CREATE', sysdate,'NOT CREATED - ' || err_msg);
+                commit;
+            end;
+          end if;
+
+
          if is_table_populated('gcd_dw.gcd_individual_services') then
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp4 CREATE and gcd_individual_services POPULATED', sysdate,'CREATING...');
             commit;
@@ -440,7 +467,7 @@ begin
             sqlstmt := 'create table ' || table_name || '_tmp4 nologging as
                 select a.*, (case when b.individual_id is not null and b.news_letter_flg in (''Y'',''1'') then ''Y''
 				                  when b.individual_id is not null and b.news_letter_flg in (''N'') then ''N'' end) gcd_services
-                from ' || table_name || '_tmp3 a, gcd_dw.gcd_individual_services b
+                from ' || table_name || '_tmp31 a, gcd_dw.gcd_individual_services b
                 where a.individual_id = b.individual_id (+)
                 and b.service_type_id (+) = 39';
 
@@ -1185,11 +1212,11 @@ begin
 
     (case
         when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N''
-            or a.suppression is not null
+            or a.suppression is not null or a.bounced is not null
          then ''N''
 
         when (a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y'')
-             and a.suppression is null then ''Y''
+             and (a.suppression is null and a.bounced is null) then ''Y''
 
         when (nvl(a.op_date,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 		      or nvl(a.tar_date_partyid,add_months(sysdate,-60)) >= add_months(sysdate,-18)
@@ -1198,7 +1225,7 @@ begin
 		      or nvl(a.activity_date18,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 			  )
               and coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
-              and a.suppression is null
+              and (a.suppression is null and a.bounced is null)
               and nvl(a.gcd_services,''A'') <> ''N''
               --and nvl(a.correspondence1,''A'') <> ''N''
               then ''Y''
