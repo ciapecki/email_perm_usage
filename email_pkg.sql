@@ -258,6 +258,7 @@ begin
             drop_table2(table_name || '_TMP1', email_optins_log);
             drop_table2(table_name || '_TMP2', email_optins_log);
             drop_table2(table_name || '_TMP3', email_optins_log);
+            drop_table2(table_name || '_TMP31', email_optins_log);
             drop_table2(table_name || '_TMP4', email_optins_log);
             drop_table2(table_name || '_TMP5', email_optins_log);
 
@@ -409,6 +410,7 @@ begin
           end if;
 
          if is_table_populated('dm_metrics.email_suppression') then
+            drop_table2(table_name || '_tmp1', email_optins_log);
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp3 CREATE and dm_metics.email_suppression POPULATED', sysdate,'CREATING...');
             commit;
             begin
@@ -435,13 +437,15 @@ begin
 
         -- PROCESS BOUNCES
          if is_table_populated('dm_users.BOUNCED_EMAIL_FLAG_GLOBAL') then
+            drop_table2(table_name || '_tmp2', email_optins_log);
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp31 bounces CREATE and dm_users.BOUNCED_EMAIL_FLAG_GLOBAL POPULATED', sysdate,'CREATING...');
             commit;
             begin
             sqlstmt := 'create table ' || table_name || '_tmp31 nologging as
                 select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
                 a.org_id, a.org_party_id, a.last_email_contacted_date,
-                a.contact_email_prfl,a.contact_email_prfl2, max(case when b.contact_id is not null then 1 end) bounced
+                a.contact_email_prfl,a.contact_email_prfl2, a.suppression,
+                max(case when b.contact_id is not null then 1 end) bounced
                 from ' || table_name || '_tmp3 a, dm_users.BOUNCED_EMAIL_FLAG_GLOBAL b
                 where coalesce(a.contact_rowid,a.prospect_rowid) = b.contact_id (+)
                 group by a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid,
@@ -461,6 +465,7 @@ begin
 
 
          if is_table_populated('gcd_dw.gcd_individual_services') then
+            drop_table2(table_name || '_tmp3', email_optins_log);
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp4 CREATE and gcd_individual_services POPULATED', sysdate,'CREATING...');
             commit;
             begin
@@ -487,6 +492,7 @@ begin
             commit;
 
             begin
+            drop_table2(table_name || '_tmp31', email_optins_log);
             sqlstmt := 'create table ' || table_name || '_tmp5 nologging as
                 select a.*,  b.permission_given_flg correspondence1
                 from ' || table_name || '_tmp4 a, gcd_dw.gcd_correspondence_details b
@@ -522,6 +528,7 @@ begin
             end;
 
             begin
+                drop_table2(table_name || '_tmp4', email_optins_log);
                 execute immediate 'create table ' || table_name || '_FLAGS nologging as
                 select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
                 a.org_id, a.org_party_id, a.last_email_contacted_date,
