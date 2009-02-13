@@ -1245,7 +1245,7 @@ begin
         when (nvl(a.op_date,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 		      or nvl(a.tar_date_partyid,add_months(sysdate,-60)) >= add_months(sysdate,-18)
               or nvl(a.tar_date_duns,add_months(sysdate,-60)) >= add_months(sysdate,-18)
-		      or a.customer is not null
+		      or nvl(a.customer,add_months(sysdate,-60)) >= add_months(sysdate,-36)
 		      or nvl(a.activity_date18,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 			  )
               and coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
