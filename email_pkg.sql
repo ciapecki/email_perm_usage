@@ -76,9 +76,25 @@ begin
                     union all
                     select a.*, sysdate from
                     (
-                        select * from ' || email_optins_table || '_bak
+                        select sub_region_name, country_id, individual_id,
+       email_address, contact_rowid, prospect_rowid, org_id,
+       org_party_id, last_email_contacted_date,
+       contact_email_prfl, contact_email_prfl2, gcd_services,
+       suppression, correspondence1, optin, op_date1,
+       op_date2, op_date, gsi_party_id, duns_number,
+       tar_date_partyid, tar_date_duns, customer,
+       activity_date18, email_permission1, email_permission2,
+       email_permission3, email_permission4 from ' || email_optins_table || '_bak
                         minus
-                        select * from ' || email_optins_table || '
+                        select sub_region_name, country_id, individual_id,
+       email_address, contact_rowid, prospect_rowid, org_id,
+       org_party_id, last_email_contacted_date,
+       contact_email_prfl, contact_email_prfl2, gcd_services,
+       suppression, correspondence1, optin, op_date1,
+       op_date2, op_date, gsi_party_id, duns_number,
+       tar_date_partyid, tar_date_duns, customer,
+       activity_date18, email_permission1, email_permission2,
+       email_permission3, email_permission4 from ' || email_optins_table || '
                     ) a';
 
         execute immediate sqlstmt;
@@ -533,6 +549,7 @@ begin
                 select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
                 a.org_id, a.org_party_id, a.last_email_contacted_date,
                 a.contact_email_prfl, a.contact_email_prfl2, a.gcd_services, a.suppression,
+                a.bounced,
                 a.correspondence1,
                 (case when a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y'' then ''Y''
                 	  when a.contact_email_prfl = ''N'' or a.contact_email_prfl2 = ''N'' then ''N''
