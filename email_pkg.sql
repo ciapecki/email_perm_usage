@@ -452,7 +452,7 @@ begin
           end if;
 
         -- PROCESS BOUNCES
-         if is_table_populated('dm_users.BOUNCED_EMAIL_FLAG_GLOBAL') then
+         if is_table_populated('dm_metrics.BOUNCED_EMAIL_FLAG_GLOBAL') then
             drop_table2(table_name || '_tmp2', email_optins_log);
             insert into email_optins_log values (email_optins_log_seq.NEXTVAL,table_name || '_tmp31 bounces CREATE and dm_users.BOUNCED_EMAIL_FLAG_GLOBAL POPULATED', sysdate,'CREATING...');
             commit;
@@ -461,9 +461,10 @@ begin
                 select a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid, a.prospect_rowid,
                 a.org_id, a.org_party_id, a.last_email_contacted_date,
                 a.contact_email_prfl,a.contact_email_prfl2, a.suppression,
-                max(case when b.contact_id is not null then 1 end) bounced
-                from ' || table_name || '_tmp3 a, dm_users.BOUNCED_EMAIL_FLAG_GLOBAL b
-                where coalesce(a.contact_rowid,a.prospect_rowid) = b.contact_id (+)
+                max(case when b.email_address is not null then 1 end) bounced
+                from ' || table_name || '_tmp3 a, dm_metrics.BOUNCED_EMAIL_FLAG_GLOBAL b
+                where --coalesce(a.contact_rowid,a.prospect_rowid) = b.contact_id (+)
+                    a.email_address = b.email_address (+)
                 group by a.sub_region_name, a.country_id, a.individual_id, a.email_address, a.contact_rowid,
                 a.org_id, a.org_party_id, a.last_email_contacted_date,
                 a.prospect_rowid, a.contact_email_prfl, a.contact_email_prfl2,a.suppression';
@@ -1239,33 +1240,23 @@ begin
             or a.suppression is not null or a.bounced is not null
          then ''N''
 
-        when (a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y'')
-             and (a.suppression is null and a.bounced is null) then ''Y''
+        when (a.contact_email_prfl = ''Y'' or a.contact_email_prfl2 = ''Y'') then ''Y''
 
         when (nvl(a.op_date,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 		      or nvl(a.tar_date_partyid,add_months(sysdate,-60)) >= add_months(sysdate,-18)
               or nvl(a.tar_date_duns,add_months(sysdate,-60)) >= add_months(sysdate,-18)
-		      or nvl(a.customer,add_months(sysdate,-60)) >= add_months(sysdate,-36)
+		      --or nvl(a.customer,add_months(sysdate,-60)) >= add_months(sysdate,-36)
 		      or nvl(a.activity_date18,add_months(sysdate,-60)) >= add_months(sysdate,-18)
 			  )
-              and coalesce(a.contact_email_prfl,a.contact_email_prfl2) is null
-              and (a.suppression is null and a.bounced is null)
               and nvl(a.gcd_services,''A'') <> ''N''
-              --and nvl(a.correspondence1,''A'') <> ''N''
               then ''Y''
 
         when nvl(a.gcd_services,''A'') = ''N'' or nvl(a.correspondence1,''A'') = ''N'' then ''N''
         when nvl(a.gcd_services,''A'') = ''Y'' or nvl(a.correspondence1,''A'') = ''Y'' then ''Y''
 
         when
-            nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')
-            and (nvl(a.gcd_services,''Y'') = ''Y''  or nvl(a.correspondence1,''Y'') = ''Y'')
-          then ''Y''
+            nvl(a.sub_region_name,''A'') in (''MIDDLE EAST'',''AFRICA'')      then ''Y''
 
-        when
-            nvl(a.sub_region_name,''A'') not in (''MIDDLE EAST'',''AFRICA'')
-            and coalesce(a.gcd_services, a.correspondence1) is null
-          then null
     end) email_permission4
 
                                         from ' || table_name || '_FLAGS5 a';
